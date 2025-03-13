@@ -13,7 +13,7 @@ admin.initializeApp({
 });
 
 const app = express();
-const PORT = process.env.APPPORT || 443; // Change the port here
+const PORT = process.env.APPPORT || 3008; // Change the port here
 
 // SSL options
 const sslOptions = {
