@@ -2,17 +2,32 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const bodyParser = require('body-parser');
-//firebase
+const https = require('https');
+const fs = require('fs');
 const admin = require('firebase-admin');
+
+// Firebase Admin SDK initialization
 const serviceAccount = require('./serviceAccountKey.json');
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
-//end
+
 const app = express();
-const PORT = process.env.APPPORT || 3003;
+const PORT = process.env.APPPORT || 443; // Change the port here
+
+// SSL options
+const sslOptions = {
+  key: fs.readFileSync('/etc/letsencrypt/live/srv690692.hstgr.cloud/privkey.pem'),
+  cert: fs.readFileSync('/etc/letsencrypt/live/srv690692.hstgr.cloud/fullchain.pem'),
+};
+
+// Middleware setup
+app.use(cors());
 app.use(bodyParser.json());
-// Importing the routers
+app.use(express.json({ limit: "100mb" }));
+app.use(express.urlencoded({ limit: "100mb", extended: true }));
+
+// Import routers
 const adminRouter = require("./routes/Admin");
 const beneficiaryRouter = require("./routes/Beneficiary");
 const notificationRouter = require("./routes/notification");
@@ -20,15 +35,10 @@ const usersRouter = require("./routes/users");
 const fuelPricesRouter = require("./routes/fuel_prices");
 const fuelRequestRouter = require("./routes/fuel_request");
 const csirEmployeeRouter = require("./routes/csir_employee");
-const FBRouter = require("./routes/FBnotification")
-const fuelRequestReportRouter = require("./routes/Reports")
-// Middleware
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: "100mb" })); // JSON parsing with limit
-app.use(express.urlencoded({ limit: "100mb", extended: true })); // URL-encoded data with limit
+const FBRouter = require("./routes/FBnotification");
+const fuelRequestReportRouter = require("./routes/Reports");
 
-// Route Usage
+// Route usage
 app.use("/beneficiary", beneficiaryRouter);
 app.use("/MK42", adminRouter);
 app.use("/notification", notificationRouter);
@@ -38,12 +48,11 @@ app.use("/request", fuelRequestRouter);
 app.use("/employee", csirEmployeeRouter);
 app.use("/FB", FBRouter);
 app.use("/Reports", fuelRequestReportRouter);
+
 // Health check route
 app.get("/", (req, res) => {
   res.send("CSIR Fuel Flow");
 });
-
-
 
 // Sample route
 app.get("/api", (req, res) => {
@@ -59,12 +68,10 @@ app.post("/api/data", (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res
-    .status(500)
-    .json({ message: "Something went wrong!", error: err.message });
+  res.status(500).json({ message: "Something went wrong!", error: err.message });
 });
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+// Start the HTTPS server
+https.createServer(sslOptions, app).listen(PORT, () => {
+  console.log(`Server is running on https://localhost:${PORT}`);
 });
